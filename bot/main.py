@@ -4,7 +4,7 @@ from discord import app_commands
 from discord.ext import commands
 
 import config
-from panel import PanelView, panel_embed
+from panel import PanelView, panel_embed, help_embed
 
 intents = discord.Intents.default()
 bot = commands.Bot(command_prefix="!", intents=intents)
@@ -21,11 +21,16 @@ async def on_ready():
     print(f"✅ Bot running as {bot.user} (ID: {bot.user.id})")
 
 
-@bot.tree.command(name="panel", description="نشر لوحة الـUpscale (أزرار) في هذه القناة")
+@bot.tree.command(name="panel", description="Post the Upscale panel (buttons) in this channel")
 @app_commands.default_permissions(manage_messages=True)
 async def panel(interaction: discord.Interaction):
     await interaction.channel.send(embed=panel_embed(), view=PanelView())
-    await interaction.response.send_message("✅ تم نشر اللوحة.", ephemeral=True)
+    await interaction.response.send_message("✅ Panel posted.", ephemeral=True)
+
+
+@bot.tree.command(name="help", description="How to use the Manhwa Upscaler")
+async def help_cmd(interaction: discord.Interaction):
+    await interaction.response.send_message(embed=help_embed(), ephemeral=True)
 
 
 if __name__ == "__main__":

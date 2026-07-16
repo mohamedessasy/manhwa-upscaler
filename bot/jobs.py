@@ -61,21 +61,21 @@ async def run_job(message: discord.Message, source: str, work_name: str,
     async with _semaphore:
         try:
             # 1 -- download sources
-            await status.update("📥 تحميل الصور", "جاري البدء...", COLOR_DL, force=True)
+            await status.update("📥 Downloading", "Starting...", COLOR_DL, force=True)
 
             async def on_dl(done, total):
-                await status.update("📥 تحميل الصور",
-                                    f"تحميل **{done}/{total}**\n{progress_bar(done, total)}",
+                await status.update("📥 Downloading",
+                                    f"Downloading **{done}/{total}**\n{progress_bar(done, total)}",
                                     COLOR_DL)
 
             images = await sources.collect(source, progress_cb=on_dl)
             if not images:
-                await status.update("❌ لا توجد صور", "تأكد من الرابط.", COLOR_ERR, force=True)
+                await status.update("❌ No images found", "Please check your links.", COLOR_ERR, force=True)
                 return
             total = len(images)
 
             # 2 -- upload input zip to R2
-            await status.update("☁️ رفع المدخلات", f"رفع **{total}** صورة إلى التخزين...",
+            await status.update("☁️ Uploading input", f"Uploading **{total}** images to storage...",
                                 COLOR_UP, force=True)
             input_key = f"jobs/{job_id}/in.zip"
             out_prefix = f"jobs/{job_id}/out"
@@ -83,7 +83,7 @@ async def run_job(message: discord.Message, source: str, work_name: str,
             await asyncio.to_thread(r2.upload_bytes, input_key, zip_bytes, "application/zip")
 
             # 3 -- submit to RunPod serverless (GPU spins up on demand)
-            await status.update("🚀 تشغيل الـGPU", "إرسال المهمة إلى RunPod...", COLOR_GPU, force=True)
+            await status.update("🚀 Starting GPU", "Submitting job to RunPod...", COLOR_GPU, force=True)
             rp_id = await runpod_client.submit({
                 "input_key": input_key,
                 "out_prefix": out_prefix,
@@ -96,30 +96,30 @@ async def run_job(message: discord.Message, source: str, work_name: str,
             async for st in runpod_client.watch(rp_id, timeout_minutes=config.JOB_TIMEOUT_MINUTES):
                 s = st.get("status")
                 if s == "IN_QUEUE":
-                    await status.update("⏳ في الانتظار", "الـGPU يعمل الآن (cold start)...", COLOR_GPU)
+                    await status.update("⏳ In queue", "GPU is spinning up (cold start)...", COLOR_GPU)
                 elif s == "IN_PROGRESS":
                     prog = st.get("output")
                     if isinstance(prog, str) and "/" in prog:
                         done, tot = prog.split("/", 1)
                         try:
                             d, t = int(done), int(tot)
-                            await status.update("🎨 جاري الـUpscale",
-                                                f"معالجة **{d}/{t}**\n{progress_bar(d, t)}",
+                            await status.update("🎨 Upscaling",
+                                                f"Processing **{d}/{t}**\n{progress_bar(d, t)}",
                                                 COLOR_UP)
                         except ValueError:
                             pass
                     else:
-                        await status.update("🎨 جاري الـUpscale", "المعالجة على الـGPU...", COLOR_UP)
+                        await status.update("🎨 Upscaling", "Processing on GPU...", COLOR_UP)
                 elif s == "COMPLETED":
                     result = st.get("output") or {}
                 elif s in ("FAILED", "CANCELLED", "TIMED_OUT"):
                     err = st.get("error") or s
-                    await status.update("❌ فشلت المهمة", f"```{str(err)[:900]}```", COLOR_ERR, force=True)
+                    await status.update("❌ Job failed", f"```{str(err)[:900]}```", COLOR_ERR, force=True)
                     return
 
             if not result or result.get("error"):
-                await status.update("❌ فشلت المهمة",
-                                    str((result or {}).get("error", "نتيجة فارغة"))[:900],
+                await status.update("❌ Job failed",
+                                    str((result or {}).get("error", "empty result"))[:900],
                                     COLOR_ERR, force=True)
                 return
 
@@ -129,17 +129,17 @@ async def run_job(message: discord.Message, source: str, work_name: str,
             zip_url = await asyncio.to_thread(r2.presign, zip_key)
 
             embed = discord.Embed(
-                title="✅ اكتمل!",
+                title="✅ Done!",
                 description=(
                     f"{header}\n\n"
-                    f"عدد الصور: **{count}** (بدون تغيير)\n"
-                    f"العرض: **{config.OUT_WIDTH}px** · JPEG جودة **{quality}**\n"
-                    f"الرابط صالح لمدة **{config.LINK_EXPIRE_HOURS // 24} أيام**"
+                    f"Pages: **{count}** (unchanged)\n"
+                    f"Width: **{config.OUT_WIDTH}px** · JPEG quality **{quality}**\n"
+                    f"Link valid for **{config.LINK_EXPIRE_HOURS // 24} days**"
                 ),
                 color=COLOR_OK,
             )
             view = discord.ui.View(timeout=None)
-            view.add_item(discord.ui.Button(label="⬇️ تحميل ZIP", url=zip_url))
+            view.add_item(discord.ui.Button(label="⬇️ Download ZIP", url=zip_url))
             await status.done(embed, view)
 
             # cleanup input zip only (outputs stay until lifecycle rule deletes them)
@@ -147,4 +147,4 @@ async def run_job(message: discord.Message, source: str, work_name: str,
 
         except Exception as e:
             traceback.print_exc()
-            await status.update("❌ خطأ غير متوقع", f"```{str(e)[:900]}```", COLOR_ERR, force=True)
+            await status.update("❌ Unexpected error", f"```{str(e)[:900]}```", COLOR_ERR, force=True)
