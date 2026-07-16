@@ -1,5 +1,6 @@
 # RunPod Serverless worker — GPU upscale (Real-ESRGAN anime via spandrel)
-FROM pytorch/pytorch:2.4.0-cuda12.4-cudnn9-runtime
+# CUDA 12.8 => supports Blackwell (sm_120) GPUs like RTX PRO 6000, plus all older gens
+FROM pytorch/pytorch:2.7.1-cuda12.8-cudnn9-runtime
 
 WORKDIR /app
 
