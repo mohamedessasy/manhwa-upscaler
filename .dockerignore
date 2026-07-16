@@ -1,0 +1,7 @@
+# worker image build context (repo root) — exclude everything not needed
+.git/
+bot/
+docker-compose.yml
+README.md
+__pycache__/
+*.pyc

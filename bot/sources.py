@@ -38,10 +38,13 @@ def _extract_zip(data: bytes) -> list[tuple[str, bytes]]:
 async def _fetch(session: aiohttp.ClientSession, url: str) -> tuple[bytes, str]:
     async with session.get(url, timeout=aiohttp.ClientTimeout(total=300)) as r:
         r.raise_for_status()
+        limit = MAX_DOWNLOAD_MB * 1024 * 1024
         size = int(r.headers.get("Content-Length") or 0)
-        if size > MAX_DOWNLOAD_MB * 1024 * 1024:
+        if size > limit:
             raise ValueError(f"file too large: {size / 1e6:.0f}MB > {MAX_DOWNLOAD_MB}MB")
         data = await r.read()
+        if len(data) > limit:  # header may be missing/lying
+            raise ValueError(f"file too large: {len(data) / 1e6:.0f}MB > {MAX_DOWNLOAD_MB}MB")
         ctype = r.headers.get("Content-Type", "").lower()
     return data, ctype
 

@@ -78,6 +78,10 @@ def handler(job):
             new_h = max(1, round(up.height * out_width / up.width))
             up = up.resize((out_width, new_h), Image.LANCZOS)
 
+        if up.height > 65500:  # JPEG hard limit is 65535 px
+            return {"error": f"page {i} ({name}) too tall for JPEG "
+                             f"({up.height}px > 65500) — split the strip first"}
+
         ob = io.BytesIO()
         up.save(ob, "JPEG", quality=quality, optimize=True)
         data = ob.getvalue()
