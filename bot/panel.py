@@ -82,6 +82,7 @@ def panel_embed() -> discord.Embed:
             "Press **⚡ Upscale**, then enter your links, work name and chapter.\n\n"
             "**Supported sources:**\n"
             "• ZIP / CBZ link\n"
+            "• Google Drive file link (chapter uploaded as ZIP)\n"
             "• Direct image links (one per line)\n\n"
             f"**Output:** {config.OUT_WIDTH}px wide · JPEG · same page count and order"
         ),
@@ -106,7 +107,8 @@ def help_embed() -> discord.Embed:
     embed.add_field(
         name="2 — Fill the form",
         value=(
-            "• **Source links** — a ZIP/CBZ URL, or direct image URLs "
+            "• **Source links** — a ZIP/CBZ URL, a Google Drive file link "
+            "(shared as 'Anyone with the link'), or direct image URLs "
             "(one per line or comma-separated)\n"
             "• **Work name** — e.g. `solo-leveling`\n"
             "• **Chapter number** — e.g. `12`\n"

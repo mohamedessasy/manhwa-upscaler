@@ -35,8 +35,10 @@ def _extract_zip(data: bytes) -> list[tuple[str, bytes]]:
     return [(n.rsplit("/", 1)[-1], zf.read(n)) for n in names]
 
 
-async def _fetch(session: aiohttp.ClientSession, url: str) -> tuple[bytes, str]:
-    async with session.get(url, timeout=aiohttp.ClientTimeout(total=300)) as r:
+async def _fetch_raw(session: aiohttp.ClientSession, url: str,
+                     params: dict | None = None) -> tuple[bytes, str]:
+    async with session.get(url, params=params,
+                           timeout=aiohttp.ClientTimeout(total=300)) as r:
         r.raise_for_status()
         limit = MAX_DOWNLOAD_MB * 1024 * 1024
         size = int(r.headers.get("Content-Length") or 0)
@@ -46,6 +48,55 @@ async def _fetch(session: aiohttp.ClientSession, url: str) -> tuple[bytes, str]:
         if len(data) > limit:  # header may be missing/lying
             raise ValueError(f"file too large: {len(data) / 1e6:.0f}MB > {MAX_DOWNLOAD_MB}MB")
         ctype = r.headers.get("Content-Type", "").lower()
+    return data, ctype
+
+
+# ---- Google Drive (single files, e.g. an uploaded chapter ZIP) ----
+GDRIVE_FOLDER_MARKER = "drive.google.com/drive/folders"
+
+
+def _gdrive_file_id(url: str) -> str | None:
+    if "drive.google.com" not in url and "drive.usercontent.google.com" not in url:
+        return None
+    for pat in (r"/file/d/([\w-]{20,})", r"[?&]id=([\w-]{20,})"):
+        m = re.search(pat, url)
+        if m:
+            return m.group(1)
+    return None
+
+
+async def _fetch(session: aiohttp.ClientSession, url: str) -> tuple[bytes, str]:
+    if GDRIVE_FOLDER_MARKER in url:
+        raise ValueError(
+            "Google Drive *folder* links are not supported — "
+            "upload the chapter as a single ZIP file and share that instead"
+        )
+
+    fid = _gdrive_file_id(url)
+    if fid:
+        url = f"https://drive.google.com/uc?export=download&id={fid}"
+
+    data, ctype = await _fetch_raw(session, url)
+
+    if fid and "text/html" in ctype:
+        # Large files: Google returns a virus-scan confirmation page.
+        # Parse the download form (drive.usercontent.google.com) and follow it.
+        html = data.decode("utf-8", "ignore")
+        m = re.search(r'<form[^>]+action="([^"]+)"', html)
+        if not m:
+            raise ValueError(
+                "Google Drive refused the download — make sure the file is shared "
+                "as 'Anyone with the link'"
+            )
+        action = m.group(1).replace("&amp;", "&")
+        params = dict(re.findall(r'name="([^"]+)"\s+value="([^"]*)"', html))
+        data, ctype = await _fetch_raw(session, action, params=params)
+        if "text/html" in ctype:
+            raise ValueError(
+                "Google Drive download failed — check the sharing permissions "
+                "('Anyone with the link')"
+            )
+
     return data, ctype
 
 
