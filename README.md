@@ -43,21 +43,24 @@ RunPod Serverless GPU (يشتغل عند الطلب، يتوقف لصفر تلق
 ### 3) RunPod Serverless
 
 1. أنشئ حساب على [runpod.io](https://runpod.io) واشحن رصيدًا.
-2. ابنِ صورة الـworker وارفعها إلى Docker Hub:
-   ```bash
-   cd worker
-   docker build -t YOUR_DOCKERHUB_USER/manhwa-upscaler:latest .
-   docker push YOUR_DOCKERHUB_USER/manhwa-upscaler:latest
-   ```
-   > بديل: اربط RunPod بمستودع GitHub وسيبني الصورة تلقائيًا.
-3. **Serverless → New Endpoint**:
-   - Container Image: الصورة التي رفعتها
+2. ادفع الكود إلى مستودع GitHub (ملفات الـworker موجودة في جذر المستودع: `Dockerfile`, `handler.py`, `upscale.py`, `requirements.txt`).
+3. **Serverless → New Endpoint → GitHub Repo**:
+   - اربط حساب GitHub واختر المستودع والفرع `main`
+   - Dockerfile path: `Dockerfile` (الجذر — يُكتشف تلقائيًا)
+   - Build context: اتركه فارغًا/الجذر
    - GPU: `RTX 4090` أو `RTX A4000` (كافٍ ورخيص)
    - **Min Workers: 0** ← هذا ما يجعل التكلفة صفرًا عند عدم الاستخدام
    - Max Workers: 1-2
    - Idle Timeout: 60 ثانية
    - Environment Variables: `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`
 4. انسخ **Endpoint ID** و**API Key** إلى `.env`.
+
+**بديل (بناء محلي يدوي):**
+```bash
+docker build -t YOUR_DOCKERHUB_USER/manhwa-upscaler:latest .
+docker push YOUR_DOCKERHUB_USER/manhwa-upscaler:latest
+```
+ثم اختر Docker Image بدل GitHub Repo عند إنشاء الـEndpoint.
 
 ### 4) تشغيل البوت (VPS)
 
