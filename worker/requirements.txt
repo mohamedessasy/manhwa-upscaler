@@ -1,0 +1,5 @@
+runpod>=1.7.0
+spandrel>=0.4.0
+pillow>=10.0.0
+boto3>=1.34.0
+numpy
